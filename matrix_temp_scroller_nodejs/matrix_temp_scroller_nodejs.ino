@@ -1,31 +1,30 @@
 /*
+Andy McDade (redlegoman)
+http://redlegoman.blogspot.co.uk
 */
-#include "DHT.h"
-#include "adafruitHT1632.h"
-#define DHTPIN 7     // what pin we're connected to (inside temp sensor)
-#define DHTOUTSIDEPIN 6 // (outside pin sensor)
+#include "DHT.h"  // Include the DHT library from adafruit
+#include "adafruitHT1632.h" // Include the LED Matrix library from adafruit which I made a tiny alteration for my particular LED matrix
+#include <stdio.h>
+#include <string.h>
+#include <DS1302.h> // Include the RTC library
 
 // ---- TEMPERATURE SENSORS:
-// Uncomment whatever type you're using!
-//#define DHTTYPE DHT11   // DHT 11 
+#define DHTPIN 7     // what pin we're connected to (inside temp sensor)
+#define DHTOUTSIDEPIN 6 // (outside pin sensor)
 #define DHTTYPE DHT22   // DHT 22  (AM2302)
-//#define DHTTYPE DHT21   // DHT 21 (AM2301)
 DHT dht(DHTPIN, DHTTYPE);
 DHT dhtoutside(DHTOUTSIDEPIN, DHTTYPE);
 
+// LED Matrix 1
 #define DATA 13 // LED Matrix
 #define WR   12 // LED Matrix
 #define CS   11 // LED Matrix
 #define CS2  5  // LED Matrix
-
 // use this line for single matrix
 HT1632LEDMatrix matrix = HT1632LEDMatrix(DATA, WR, CS);
-// use this line for two matrices!
+// use this line for two matrices! - A future update
 //HT1632LEDMatrix matrix = HT1632LEDMatrix(DATA, WR, CS, CS2);
 
-#include <stdio.h>
-#include <string.h>
-#include <DS1302.h>
 
 // VARS ----------------------------------
 int incomingByte = 0;   // for incoming serial data
@@ -36,7 +35,6 @@ long unsigned int lowIn;
 long unsigned int pause = 2000; 
 String S3; // the message to scrol, plus the temperature
 char test[20]; // used in the rounding of the float to 1 decimaml place
-  
 long unsigned int  starttime = millis(); // the time we started
 int show_in = 0;
 int show_out = 0;
@@ -51,26 +49,25 @@ String theTime = "00:00";
 String theDay = "NoSetDay";
 long int SwitchTime = 4000; // time between switching modes (outside, inside, time etc.)
 String oldmsg = "99:99";
-float GInsideTemp = 00.0;
-float GOutsideTemp = 00.0;
-float GInsideH = 00.0;
-float GOutsideH = 00.0;
+float GInsideTemp = 00.00;
+float GOutsideTemp = 00.00;
+float GInsideH = 00.00;
+float GOutsideH = 00.00;
 long int startJson = 0;
-
-
+//-- RTC DS1302
 /* Set the appropriate digital I/O pin connections */
 uint8_t CE_PIN   = 8; // RTC
 uint8_t IO_PIN   = 9; // RTC
 uint8_t SCLK_PIN = 10;// RTC
 
+/* Create a DS1302 object */
+DS1302 rtc(CE_PIN, IO_PIN, SCLK_PIN);
 /* Create buffers */
 char buf[50];
 char day[10];
 char mon[10];
 
-/* Create a DS1302 object */
-DS1302 rtc(CE_PIN, IO_PIN, SCLK_PIN);
-
+// FUNCTIONS ---------------------
 void print_time()
 {
   /* Get the current time and date from the chip */
@@ -166,7 +163,7 @@ void print_time()
 }
 
 
-  
+//#######################  SETUP  ##########################################  
 void setup()
 {
   Serial.begin(9600);
@@ -290,14 +287,19 @@ void readKey(){
 
 void outJSON()
 {
-  Serial.println("{\"humidty\":\"" + String((long)round(GInsideH)) +
-			"\", \"celsius\":\"" + String((long)round(GInsideTemp)) +
-			"\", \"humidity2\":\"" + String((long)round(GOutsideH)) +
-			"\", \"celsius2\":\"" + String((long)round(GOutsideTemp)) +
-			"\"}");
+  Serial.print("{\"humidty\":\"");
+  Serial.print(GInsideH);
+  Serial.print("\",\"celsius\":\"");
+  Serial.print(GInsideTemp);
+  Serial.print("\", \"humidity2\":\"");
+  Serial.print(GOutsideH);
+  Serial.print("\", \"celsius2\":\"");
+  Serial.print(GOutsideTemp);
+  Serial.println("\"}");
 }
-
-/* Loop and print the time every second */
+//#########################################################################
+//#######################  LOOP  ##########################################  
+//#########################################################################
 void loop()
 {
   if(show_in == 1){
@@ -307,8 +309,7 @@ void loop()
       readtemp = 0; // stop reading the temperature
       S3 = "inside ";
       S3 += floatToString(test,temperature,1,3); // round the float to 1 decimal place
-
-      char X = 64;
+      char X = 64; // print the "degree" character - I replaced the "@" in glcdfont.c
       S3 += X;
     }
     scrollStuff(S3);
@@ -320,8 +321,7 @@ void loop()
       readtemp = 0;
       S3 = "outside ";
       S3 += floatToString(test,temperature,1,3);
-
-      char X = 64;
+      char X = 64;// print the "degree" character - I replaced the "@" in glcdfont.c
       S3 += X;
     }
     scrollStuff(S3);
@@ -332,7 +332,6 @@ void loop()
         GOutsideH = humidity;
         float humidity2 = dht.readHumidity();
         GInsideH = humidity2;
-
         readtemp = 0;
         S3 = "Humidity ";
         S3 += floatToString(test,humidity,1,3);
@@ -345,15 +344,12 @@ void loop()
     print_time();
     S3 = "00:00";
     showStuff(theTime);
-    //delay (2000);
   }
   
   if(showday == 1){
     print_time();
     scrollStuff(theDay);
   }
-  
-
   
   if(millis() - starttime > SwitchTime){
     matrix.clearScreen();
@@ -382,8 +378,7 @@ void loop()
     starttime = millis();
   }
 
-//  Serial.println(" .");
-    
+  
   if (LEDON == 1){
     if(millis() - lowIn > pause){
       digitalWrite(ledPin, LOW); // turn off the LED
@@ -398,24 +393,19 @@ void loop()
   
   long int pauseJson = 5000;
   if(millis() - startJson > pauseJson){
-    //Serial.println(millis());
     outJSON();  
     startJson = millis();
   }
     
 }
   
-  
+// ################  END LOOP ##############################################
+// #########################################################################
 
 
 
-
-
-
-
-
-
- //-------------------------------------------------------------------------------------------------- 
+// OTHER FUNCTIONS.  STOLEN FROM THE INTERNETS.  From arduino.cc I think.
+//-------------------------------------------------------------------------------------------------- 
   char * floatToString(char * outstr, double val, byte precision, byte widthp){
   char temp[16];
   byte i;
