@@ -1,5 +1,5 @@
 /*
-Andy McDade (redlegoman)
+Andy McDade (redlegoman)  
 http://redlegoman.blogspot.co.uk
 */
 #include "DHT.h"  // Include the DHT library from adafruit
